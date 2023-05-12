@@ -1,0 +1,80 @@
+# syntax=mcr.microsoft.com/oss/pkg-builder:mariner2
+- name: moby-engine
+  website: https://github.com/moby/moby
+  description: |
+    Docker container platform (engine package)
+    Moby is an open-source project created by Docker to enable and accelerate software containerization.
+  dependencies:
+    runtime:
+      - moby-containerd (>= 1.4.3)
+      - moby-runc (>= 1.0.2)
+    build:
+      - cmake
+      - gcc
+      - golang
+      - libapparmor-dev
+      - libbtrfs-dev
+      - libdevmapper-dev
+      - libltdl-dev
+      - pkg-config
+    recommends:
+      - apparmor
+      - ca-certificates
+      - iptables
+      - kmod
+      - moby-cli
+      - pigz
+      - xz-utils
+  sources:
+    engine:
+      ref: https://github.com/moby/moby.git#master
+    tini:
+      # TODO: I just auto-completed this, need to verify
+      # Also, do we want to make this a separate package or keep here?
+      ref: https://github.com/krallin/tini.git#v0.19.0 
+    golang:
+      ref: docker-image://mcr.microsoft.com/oss/go/microsoft/golang:1.19.9
+      path: /usr/local/go
+  conflicts: &conflicts
+    - docker
+    - docker-ce
+    - docker-ce-cli
+    - docker.io
+    - docker-ee
+    - docker-engine
+    - docker-engine-cs
+    - lxc-docker
+    - lxc-docker-virtual-package
+  replaces: *conflicts
+  buildSteps:
+    - cacheDirs:
+      /go/pkg/mod: {}
+      /root/.cache/go-build:
+        # go's build cache is unable to invalidate "include" files in cgo.
+        # This means that builds for different distros+arches need their own caches or else there can be errors during build.
+        # An example final cache-key may be "bionic/amd64-/root/.cache/go-build"
+        includeDistroKey: true 
+        includeArchKey: true
+      workDir: /build/src
+      mounts:
+        engine: .
+        golang: /usr/local/go
+      steps:
+        - hack/make.sh dynbinary
+      # TODO: This is missing systemd units because we we custom ones (we could probably just patch the ones from the repo, though)
+      #       Could also just be a local file in the repo where this is defined and included in `sources`.
+      outputs:
+        bundles/dockerd:
+          type: exe
+        bundles/docker-proxy:
+          type: exe
+        contrib/check-config.sh:
+          type: contrib
+        contrib/nuke-graph-directory.sh:
+          type: contrib
+    - workDir: /build/src
+      mounts:
+        - tini: .
+      steps:
+        - command: cmake .
+        - command: make tini-static

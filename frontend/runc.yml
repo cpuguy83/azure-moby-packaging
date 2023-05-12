@@ -1,0 +1,49 @@
+# syntax=mcr.microsoft.com/oss/pkg-builder:mariner2
+- name: moby-runc
+  dependencies:
+    runtime:
+      - libseccomp2
+    build:
+      - libseccomp-dev
+      - golang
+  website: https://github.com/opencontainers/runc
+  conflicts:
+    - containerd.io
+  provides:
+    - runc
+  sources: 
+    src:
+      ref: https://github.com/opencontainers/runc.git#master
+    golang:
+      ref: docker-image://mcr.microsoft.com/oss/go/microsoft/golang:1.19.9
+      path: /usr/local/go
+  
+  buildSteps:
+    - cacheDirs:
+        /go/pkg/mod: {}
+        /root/.cache/go-build:
+          # go's build cache is unable to invalidate "include" files in cgo.
+          # This means that builds for different distros+arches need their own caches or else there can be errors during build.
+          # An example final cache-key may be "bionic/amd64-/root/.cache/go-build"
+          includeDistroKey: true 
+          includeArchKey: true
+      workDir: /build/src
+      mounts:
+        src: .
+        golang: /usr/local/go
+      steps:
+        - command: make runc
+      outputs:
+        runc:
+          type: exe
+    - workDir: /build/src
+      mounts:
+        src: .
+      steps:
+        - command: make man
+      outputs:
+        man/man: # TODO: this is just an example, I don't think this is right for runc
+          type: manpage
+          filters:
+            includes:
+              - *.1
