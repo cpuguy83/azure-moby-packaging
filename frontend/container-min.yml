@@ -1,0 +1,7 @@
+dependencies:
+  runtime:
+    - ca-certificates
+    - curl
+command: curl -sSLf https://example.com
+env:
+  FOO: bar

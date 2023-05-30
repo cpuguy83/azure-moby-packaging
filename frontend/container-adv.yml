@@ -1,0 +1,39 @@
+# syntax=mcr.microsoft.com/oss/img-builder/mariner2:latest
+
+dependencies:
+  runtime:
+    - libseccomp2
+  build:
+    - golang
+    - libseccomp-dev
+    - make
+    - gcc
+sources:
+  golang:
+    ref: docker-image://mcr.microsoft.com/oss/go/microsoft/golang:1.19.9
+    path: /usr/local/go
+  runc:
+    ref: https://github.com/opencontainers/runc.git#master
+
+includes:
+  runc:
+    path: /build/src/runc
+    destination: /usr/local/bin/
+    steps:
+      - commands:
+          - make runc
+        sources:
+          golang: /usr/local/go
+          runc: /build/src
+        cacheDirs:
+          /go/pkg/mod: {}
+          /root/.cache/go-build:
+            includeDistroKey: true 
+            includeArchKey: true
+        workDir: /build/src
+        env:
+          GO_ROOT: /usr/local/go
+          GOPATH: /go
+command: "true"
+env:
+  FOO: bar
